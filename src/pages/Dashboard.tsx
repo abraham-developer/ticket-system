@@ -44,6 +44,11 @@ export default function Dashboard() {
                 </h1>
                 <p className="text-slate-400 text-sm">{user.email}</p>
               </div>
+              {user.role === 'admin' && (
+  <span className="px-2 py-1 bg-purple-600 text-white text-xs rounded-full ml-2">
+    Admin
+  </span>
+)}
             </div>
             
             <button

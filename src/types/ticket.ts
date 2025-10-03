@@ -1,3 +1,4 @@
+// src/types/ticket.ts
 export type TicketStatus = 'new' | 'in_progress' | 'resolved' | 'closed';
 export type TicketPriority = 'low' | 'medium' | 'high' | 'urgent';
 export type ContactMedium = 'whatsapp' | 'email' | 'phone';
@@ -13,12 +14,10 @@ export interface Ticket {
   created_by?: string;
   assigned_to?: string;
   
-  // Canales de comunicación
   contact_medium?: ContactMedium;
-  contact_value?: string; // email o teléfono normal
+  contact_value?: string;
   
-  // WhatsApp específico
-  whatsapp_phone?: string; // Formato: 5215562123358@s.whatsapp.net
+  whatsapp_phone?: string;
   whatsapp_message_id?: string;
   whatsapp_group_id?: string;
   
@@ -27,7 +26,6 @@ export interface Ticket {
   resolved_at?: string;
   closed_at?: string;
   
-  // Relaciones (cuando se hacen joins)
   creator?: {
     id: string;
     full_name: string;
@@ -38,6 +36,29 @@ export interface Ticket {
     full_name: string;
     email: string;
   };
+}
+
+// Nuevo tipo para comentarios
+export interface TicketComment {
+  id: string;
+  ticket_id: string;
+  user_id: string;
+  content: string;
+  is_internal: boolean;
+  created_at: string;
+  updated_at: string;
+  
+  user?: {
+    id: string;
+    full_name: string;
+    email: string;
+    avatar_url?: string;
+  };
+}
+
+export interface CreateCommentDTO {
+  content: string;
+  is_internal?: boolean;
 }
 
 export interface CreateTicketDTO {
@@ -64,4 +85,9 @@ export interface UpdateTicketDTO {
   whatsapp_phone?: string;
   whatsapp_message_id?: string;
   whatsapp_group_id?: string;
+}
+
+export interface CloseTicketDTO {
+  closing_comment: string;
+  is_internal?: boolean;
 }

@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import * as ticketService from '../services/ticketService';
 import type { Ticket, CreateTicketDTO, UpdateTicketDTO } from '../types/ticket';
 
-export function useTickets(userId: string) {
+export function useTickets(userId: string, userRole?: string) {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -12,7 +12,7 @@ export function useTickets(userId: string) {
   const loadTickets = async () => {
     try {
       setLoading(true);
-      const data = await ticketService.getTickets(userId);
+      const data = await ticketService.getTickets(userId, userRole);
       console.log('📥 Tickets cargados:', data.length);
       setTickets(data);
       setError(null);
@@ -25,10 +25,9 @@ export function useTickets(userId: string) {
   };
 
   useEffect(() => {
-    console.log('🚀 Iniciando suscripción Realtime para user:', userId);
+    console.log('🚀 Iniciando suscripción Realtime para user:', userId, 'role:', userRole);
     loadTickets();
 
-    // Crear canal único
     const channelName = `tickets:${userId}`;
     console.log('📡 Creando canal:', channelName);
 
@@ -51,15 +50,21 @@ export function useTickets(userId: string) {
 
           if (payload.eventType === 'INSERT') {
             const newTicket = await ticketService.getTicketById(payload.new.id);
-            if (newTicket && (newTicket.created_by === userId || newTicket.assigned_to === userId)) {
-              setTickets((prev) => {
-                if (prev.some(t => t.id === newTicket.id)) {
-                  console.log('⚠️ Ticket duplicado, ignorando');
-                  return prev;
-                }
-                console.log('✅ Agregando ticket:', newTicket.id);
-                return [newTicket, ...prev];
-              });
+            if (newTicket) {
+              // Si es admin, siempre agregar
+              // Si no es admin, verificar que sea su ticket
+              if (userRole === 'admin' || 
+                  newTicket.created_by === userId || 
+                  newTicket.assigned_to === userId) {
+                setTickets((prev) => {
+                  if (prev.some(t => t.id === newTicket.id)) {
+                    console.log('⚠️ Ticket duplicado, ignorando');
+                    return prev;
+                  }
+                  console.log('✅ Agregando ticket:', newTicket.id);
+                  return [newTicket, ...prev];
+                });
+              }
             }
           } 
           
@@ -72,7 +77,10 @@ export function useTickets(userId: string) {
                   console.log('🔄 Actualizando ticket:', updatedTicket.id);
                   return prev.map(t => t.id === updatedTicket.id ? updatedTicket : t);
                 }
-                if (updatedTicket.created_by === userId || updatedTicket.assigned_to === userId) {
+                // Si es admin o su ticket, agregarlo
+                if (userRole === 'admin' || 
+                    updatedTicket.created_by === userId || 
+                    updatedTicket.assigned_to === userId) {
                   return [updatedTicket, ...prev];
                 }
                 return prev;
@@ -103,18 +111,16 @@ export function useTickets(userId: string) {
         }
       });
 
-    // Cleanup
     return () => {
       console.log('🔌 Desconectando WebSocket');
       channel.unsubscribe();
     };
-  }, [userId]);
+  }, [userId, userRole]);
 
   const createTicket = async (data: CreateTicketDTO) => {
     try {
       const newTicket = await ticketService.createTicket(data, userId);
       
-      // UI optimista
       setTickets(prev => {
         if (prev.some(t => t.id === newTicket.id)) return prev;
         return [newTicket, ...prev];

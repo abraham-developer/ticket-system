@@ -5,17 +5,16 @@ import { useTickets } from '../hooks/useTickets';
 import { useAuth } from '../contexts/AuthContext';
 import TicketForm from './TicketForm';
 import TicketCard from './TicketCard';
-import type { CreateTicketDTO } from '../types/ticket';
+import TicketDetailModal from './TicketDetailModal';
+import type { CreateTicketDTO, Ticket } from '../types/ticket';
 
 export default function TicketList() {
   const { user } = useAuth();
   const [showForm, setShowForm] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [filter, setFilter] = useState<'all' | 'new' | 'in_progress' | 'resolved'>('all');
 
-  console.log('🎫 TicketList rendering - user:', user);
-
   if (!user) {
-    console.log('⚠️ No user in TicketList');
     return (
       <div className="text-center py-12">
         <p className="text-red-400">Error: No hay usuario autenticado</p>
@@ -23,9 +22,7 @@ export default function TicketList() {
     );
   }
 
-  const { tickets, loading, error, createTicket } = useTickets(user.id);
-
-  console.log('🎫 Tickets state:', { tickets, loading, error });
+  const { tickets, loading, error, createTicket, refresh } = useTickets(user.id, user.role);
 
   const handleCreateTicket = async (data: CreateTicketDTO) => {
     try {
@@ -106,9 +103,7 @@ export default function TicketList() {
           >
             {label}
             <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-              filter === value
-                ? 'bg-white/20'
-                : 'bg-slate-700'
+              filter === value ? 'bg-white/20' : 'bg-slate-700'
             }`}>
               {count}
             </span>
@@ -144,7 +139,10 @@ export default function TicketList() {
                 transition={{ delay: index * 0.05 }}
                 layout
               >
-                <TicketCard ticket={ticket} />
+                <TicketCard 
+                  ticket={ticket} 
+                  onClick={() => setSelectedTicket(ticket)}
+                />
               </motion.div>
             ))}
           </div>
@@ -156,6 +154,18 @@ export default function TicketList() {
         <TicketForm
           onSubmit={handleCreateTicket}
           onClose={() => setShowForm(false)}
+        />
+      )}
+
+      {/* Modal de Detalle */}
+      {selectedTicket && (
+        <TicketDetailModal
+          ticket={selectedTicket}
+          onClose={() => setSelectedTicket(null)}
+          onTicketUpdated={() => {
+            refresh();
+            setSelectedTicket(null);
+          }}
         />
       )}
     </div>
