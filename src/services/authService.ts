@@ -19,11 +19,9 @@ export async function signUp(
   try {
     console.log('1. Iniciando registro...', { email, fullName });
     
-    // Hash de la contraseña
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     console.log('2. Hash creado');
 
-    // Insertar usuario
     const { data: user, error: userError } = await supabase
       .from('users')
       .insert({
@@ -48,7 +46,6 @@ export async function signUp(
       throw new Error('No se pudo crear el usuario');
     }
 
-    // Crear sesión
     const token = generateToken();
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + TOKEN_EXPIRY_DAYS);
@@ -86,7 +83,7 @@ export async function signIn(
   password: string
 ): Promise<LoginResponse> {
   try {
-    console.log('Login attempt for:', email);
+    console.log('🔐 Login attempt for:', email);
 
     const { data: user, error: userError } = await supabase
       .from('users')
@@ -95,7 +92,7 @@ export async function signIn(
       .eq('is_active', true)
       .single();
 
-    console.log('User query result:', { user, userError });
+    console.log('👤 User query result:', { user, userError });
 
     if (userError || !user) {
       throw new Error('Credenciales inválidas');
@@ -127,10 +124,12 @@ export async function signIn(
 
     const { password_hash, ...userWithoutPassword } = user;
 
+    console.log('✅ Login exitoso, token guardado');
+
     return { user: userWithoutPassword as User, token };
     
   } catch (error: any) {
-    console.error('Login error:', error);
+    console.error('❌ Login error:', error);
     throw error;
   }
 }
@@ -141,26 +140,61 @@ export async function signOut(): Promise<void> {
   if (token) {
     await supabase.from('sessions').delete().eq('token', token);
     localStorage.removeItem('auth_token');
+    console.log('🚪 Sesión cerrada');
   }
 }
 
 export async function getCurrentUser(): Promise<User | null> {
-  const token = localStorage.getItem('auth_token');
-  
-  if (!token) return null;
+  try {
+    const token = localStorage.getItem('auth_token');
+    
+    console.log('🔍 Verificando sesión...', { hasToken: !!token });
+    
+    if (!token) {
+      console.log('⚠️ No hay token en localStorage');
+      return null;
+    }
 
-  const { data: session, error } = await supabase
-    .from('sessions')
-    .select('*, users(*)')
-    .eq('token', token)
-    .gt('expires_at', new Date().toISOString())
-    .single();
+    const { data: session, error } = await supabase
+      .from('sessions')
+      .select(`
+        *,
+        users (
+          id,
+          email,
+          full_name,
+          avatar_url,
+          role,
+          is_active,
+          created_at,
+          updated_at
+        )
+      `)
+      .eq('token', token)
+      .gt('expires_at', new Date().toISOString())
+      .single();
 
-  if (error || !session) {
+    console.log('📊 Session query result:', { session, error });
+
+    if (error) {
+      console.error('❌ Error en sesión:', error);
+      localStorage.removeItem('auth_token');
+      return null;
+    }
+
+    if (!session || !session.users) {
+      console.log('⚠️ Sesión inválida o expirada');
+      localStorage.removeItem('auth_token');
+      return null;
+    }
+
+    console.log('✅ Usuario autenticado:', session.users);
+    
+    return session.users as User;
+    
+  } catch (error) {
+    console.error('💥 Error crítico en getCurrentUser:', error);
     localStorage.removeItem('auth_token');
     return null;
   }
-
-  const { password_hash, ...user } = session.users;
-  return user as User;
 }

@@ -2,20 +2,22 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import * as ticketService from '../services/ticketService';
 import type { Ticket, CreateTicketDTO, UpdateTicketDTO } from '../types/ticket';
-import type { RealtimeChannel } from '@supabase/supabase-js';
 
 export function useTickets(userId: string) {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [realtimeStatus, setRealtimeStatus] = useState<string>('CONNECTING');
 
   const loadTickets = async () => {
     try {
       setLoading(true);
       const data = await ticketService.getTickets(userId);
+      console.log('📥 Tickets cargados:', data.length);
       setTickets(data);
       setError(null);
     } catch (err: any) {
+      console.error('❌ Error cargando tickets:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -23,85 +25,101 @@ export function useTickets(userId: string) {
   };
 
   useEffect(() => {
+    console.log('🚀 Iniciando suscripción Realtime para user:', userId);
     loadTickets();
 
-    // Suscripción a cambios en tiempo real
-    const channel: RealtimeChannel = supabase
-      .channel('tickets-changes')
+    // Crear canal único
+    const channelName = `tickets:${userId}`;
+    console.log('📡 Creando canal:', channelName);
+
+    const channel = supabase
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
-          event: '*', // INSERT, UPDATE, DELETE
+          event: '*',
           schema: 'public',
           table: 'tickets',
         },
         async (payload) => {
-          console.log('🔴 Cambio en tiempo real:', payload);
+          console.log('🔥 REALTIME RECIBIDO:', {
+            type: payload.eventType,
+            table: payload.table,
+            new: payload.new,
+            old: payload.old
+          });
 
           if (payload.eventType === 'INSERT') {
-            // Nuevo ticket creado
             const newTicket = await ticketService.getTicketById(payload.new.id);
-            if (newTicket) {
-              // Verificar si el ticket es relevante para este usuario
-              if (
-                newTicket.created_by === userId || 
-                newTicket.assigned_to === userId
-              ) {
-                setTickets((prev) => {
-                  // Evitar duplicados
-                  if (prev.some(t => t.id === newTicket.id)) {
-                    return prev;
-                  }
-                  return [newTicket, ...prev];
-                });
-              }
+            if (newTicket && (newTicket.created_by === userId || newTicket.assigned_to === userId)) {
+              setTickets((prev) => {
+                if (prev.some(t => t.id === newTicket.id)) {
+                  console.log('⚠️ Ticket duplicado, ignorando');
+                  return prev;
+                }
+                console.log('✅ Agregando ticket:', newTicket.id);
+                return [newTicket, ...prev];
+              });
             }
-          } else if (payload.eventType === 'UPDATE') {
-            // Ticket actualizado
+          } 
+          
+          else if (payload.eventType === 'UPDATE') {
             const updatedTicket = await ticketService.getTicketById(payload.new.id);
             if (updatedTicket) {
               setTickets((prev) => {
-                // Si el ticket ya existe, actualizarlo
                 const exists = prev.some(t => t.id === updatedTicket.id);
-                
                 if (exists) {
-                  return prev.map((ticket) =>
-                    ticket.id === updatedTicket.id ? updatedTicket : ticket
-                  );
+                  console.log('🔄 Actualizando ticket:', updatedTicket.id);
+                  return prev.map(t => t.id === updatedTicket.id ? updatedTicket : t);
                 }
-                
-                // Si no existe pero ahora es relevante, agregarlo
-                if (
-                  updatedTicket.created_by === userId || 
-                  updatedTicket.assigned_to === userId
-                ) {
+                if (updatedTicket.created_by === userId || updatedTicket.assigned_to === userId) {
                   return [updatedTicket, ...prev];
                 }
-                
                 return prev;
               });
             }
-          } else if (payload.eventType === 'DELETE') {
-            // Ticket eliminado
-            setTickets((prev) =>
-              prev.filter((ticket) => ticket.id !== payload.old.id)
-            );
+          } 
+          
+          else if (payload.eventType === 'DELETE') {
+            console.log('🗑️ Eliminando ticket:', payload.old.id);
+            setTickets((prev) => prev.filter(t => t.id !== payload.old.id));
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('📊 Estado WebSocket:', status);
+        setRealtimeStatus(status);
 
-    // Cleanup: desuscribirse al desmontar
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ WebSocket CONECTADO - Realtime activo');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Error en WebSocket');
+          setError('Error en conexión Realtime');
+        } else if (status === 'TIMED_OUT') {
+          console.error('⏱️ WebSocket timeout');
+          setError('Timeout en conexión Realtime');
+        } else if (status === 'CLOSED') {
+          console.warn('🔌 WebSocket cerrado');
+        }
+      });
+
+    // Cleanup
     return () => {
-      supabase.removeChannel(channel);
+      console.log('🔌 Desconectando WebSocket');
+      channel.unsubscribe();
     };
   }, [userId]);
 
   const createTicket = async (data: CreateTicketDTO) => {
     try {
       const newTicket = await ticketService.createTicket(data, userId);
-      // No es necesario actualizar el estado aquí, 
-      // el evento de realtime lo hará automáticamente
+      
+      // UI optimista
+      setTickets(prev => {
+        if (prev.some(t => t.id === newTicket.id)) return prev;
+        return [newTicket, ...prev];
+      });
+      
       return newTicket;
     } catch (err: any) {
       setError(err.message);
@@ -112,7 +130,6 @@ export function useTickets(userId: string) {
   const updateTicket = async (id: string, data: UpdateTicketDTO) => {
     try {
       const updated = await ticketService.updateTicket(id, data);
-      // El evento de realtime actualizará el estado
       return updated;
     } catch (err: any) {
       setError(err.message);
@@ -123,7 +140,6 @@ export function useTickets(userId: string) {
   const deleteTicket = async (id: string) => {
     try {
       await ticketService.deleteTicket(id);
-      // El evento de realtime eliminará del estado
     } catch (err: any) {
       setError(err.message);
       throw err;
@@ -134,6 +150,7 @@ export function useTickets(userId: string) {
     tickets,
     loading,
     error,
+    realtimeStatus,
     createTicket,
     updateTicket,
     deleteTicket,

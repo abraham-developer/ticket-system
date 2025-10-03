@@ -8,10 +8,21 @@ export default function Dashboard() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
 
+  console.log('📊 Dashboard rendering - user:', user);
+
   const handleLogout = async () => {
-    await signOut();
-    navigate('/login');
+    try {
+      await signOut();
+      navigate('/login');
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+    }
   };
+
+  if (!user) {
+    console.log('⚠️ No user in Dashboard');
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 md:p-8">
@@ -28,8 +39,10 @@ export default function Dashboard() {
                 <User className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-lg md:text-xl font-bold text-white">{user?.full_name}</h1>
-                <p className="text-slate-400 text-sm">{user?.email}</p>
+                <h1 className="text-lg md:text-xl font-bold text-white">
+                  {user.full_name || user.email}
+                </h1>
+                <p className="text-slate-400 text-sm">{user.email}</p>
               </div>
             </div>
             
@@ -43,7 +56,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Lista de Tickets en Tiempo Real - SOLO UNA VEZ */}
+        {/* Lista de Tickets */}
         <div className="bg-slate-800/90 backdrop-blur-xl rounded-2xl p-4 md:p-6 border border-purple-500/20">
           <TicketList />
         </div>

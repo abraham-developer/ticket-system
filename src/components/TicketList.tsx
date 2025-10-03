@@ -9,9 +9,40 @@ import type { CreateTicketDTO } from '../types/ticket';
 
 export default function TicketList() {
   const { user } = useAuth();
-  const { tickets, loading, error, createTicket } = useTickets(user!.id);
   const [showForm, setShowForm] = useState(false);
   const [filter, setFilter] = useState<'all' | 'new' | 'in_progress' | 'resolved'>('all');
+
+  console.log('🎫 TicketList rendering - user:', user);
+
+  if (!user) {
+    console.log('⚠️ No user in TicketList');
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-400">Error: No hay usuario autenticado</p>
+      </div>
+    );
+  }
+
+  const { tickets, loading, error, createTicket } = useTickets(user.id);
+
+  console.log('🎫 Tickets state:', { tickets, loading, error });
+
+  const handleCreateTicket = async (data: CreateTicketDTO) => {
+    try {
+      await createTicket(data);
+      setShowForm(false);
+    } catch (err) {
+      console.error('Error creating ticket:', err);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+      </div>
+    );
+  }
 
   const filteredTickets = tickets.filter(ticket => 
     filter === 'all' ? true : ticket.status === filter
@@ -23,20 +54,6 @@ export default function TicketList() {
     in_progress: tickets.filter(t => t.status === 'in_progress').length,
     resolved: tickets.filter(t => t.status === 'resolved').length,
   };
-
-  // ✅ FUNCIÓN DEFINIDA CORRECTAMENTE
-  const handleCreateTicket = async (data: CreateTicketDTO) => {
-    await createTicket(data);
-    setShowForm(false);
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">

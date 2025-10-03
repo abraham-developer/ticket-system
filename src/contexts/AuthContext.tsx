@@ -9,35 +9,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Verificar sesión al cargar
     checkSession();
   }, []);
 
   const checkSession = async () => {
     try {
+      console.log('🔄 Verificando sesión al cargar...');
       const currentUser = await authService.getCurrentUser();
-      setUser(currentUser);
+      
+      if (currentUser) {
+        console.log('✅ Sesión válida encontrada');
+        setUser(currentUser);
+      } else {
+        console.log('⚠️ No hay sesión válida');
+        setUser(null);
+      }
     } catch (error) {
-      console.error('Error checking session:', error);
+      console.error('❌ Error checking session:', error);
       setUser(null);
     } finally {
       setLoading(false);
+      console.log('✅ Verificación de sesión completada');
     }
   };
 
   const signIn = async (email: string, password: string) => {
-    const { user } = await authService.signIn(email, password);
-    setUser(user);
+    try {
+      const { user } = await authService.signIn(email, password);
+      setUser(user);
+    } catch (error) {
+      console.error('Error en signIn:', error);
+      throw error;
+    }
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    const { user } = await authService.signUp(email, password, fullName);
-    setUser(user);
+    try {
+      const { user } = await authService.signUp(email, password, fullName);
+      setUser(user);
+    } catch (error) {
+      console.error('Error en signUp:', error);
+      throw error;
+    }
   };
 
   const signOut = async () => {
-    await authService.signOut();
-    setUser(null);
+    try {
+      await authService.signOut();
+      setUser(null);
+    } catch (error) {
+      console.error('Error en signOut:', error);
+      throw error;
+    }
   };
 
   return (

@@ -6,19 +6,32 @@ import Dashboard from './pages/Dashboard';
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
 
+  console.log('🔒 ProtectedRoute - user:', user, 'loading:', loading);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mx-auto mb-4"></div>
+          <p className="text-slate-400">Verificando sesión...</p>
+        </div>
       </div>
     );
   }
 
-  return user ? <>{children}</> : <Navigate to="/login" replace />;
+  if (!user) {
+    console.log('❌ No user, redirecting to login');
+    return <Navigate to="/login" replace />;
+  }
+
+  console.log('✅ User authenticated, rendering children');
+  return <>{children}</>;
 }
 
 function AppRoutes() {
   const { user, loading } = useAuth();
+
+  console.log('🚦 AppRoutes - user:', user, 'loading:', loading);
 
   if (loading) {
     return (
@@ -48,6 +61,7 @@ function AppRoutes() {
 }
 
 function App() {
+  console.log('🚀 App rendering');
   return (
     <BrowserRouter>
       <AuthProvider>
