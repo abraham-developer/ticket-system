@@ -1,14 +1,14 @@
 // src/pages/AdminLayout.tsx
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate, useLocation, Outlet } from 'react-router-dom';
+import { useNavigate, Outlet } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LogOut, User, Settings, Clock, LayoutDashboard, ArrowLeft } from 'lucide-react';
+import { LogOut, User,  ArrowLeft } from 'lucide-react';
 import SLAAlertMonitor from '../components/SLAAlertMonitor';
 
 export default function AdminLayout() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
+ 
 
   const handleLogout = async () => {
     try {

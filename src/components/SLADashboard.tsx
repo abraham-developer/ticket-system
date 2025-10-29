@@ -1,5 +1,5 @@
 // src/components/SLADashboard.tsx - VERSIÓN MEJORADA SIN PARPADEO
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { 
   TrendingUp, 

@@ -200,8 +200,7 @@ export async function closeTicket(
  * Registrar primera respuesta a un ticket
  */
 export async function markFirstResponse(
-  ticketId: string,
-  userId: string
+  ticketId: string
 ): Promise<void> {
   await recordFirstResponse(ticketId);
   

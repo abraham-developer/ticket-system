@@ -39,7 +39,7 @@ export async function createComment(
 
   // Si no tiene primera respuesta y el comentario es del agente (no del creador), registrarla
   if (ticket && !ticket.first_response_at && userId !== ticket.created_by) {
-    await markFirstResponse(ticketId, userId);
+    await markFirstResponse(ticketId);
     console.log(`✅ Primera respuesta registrada en ticket #${ticket.ticket_number}`);
   }
 

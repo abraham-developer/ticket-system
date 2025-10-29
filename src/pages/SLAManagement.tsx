@@ -1,7 +1,7 @@
 // src/pages/SLAManagement.tsx
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Edit2, Trash2, Clock, AlertTriangle, Save, X } from 'lucide-react';
+import { Plus, Edit2, Clock, AlertTriangle, Save, X } from 'lucide-react';
 import { getSLAConfigurations, upsertSLAConfiguration } from '../services/slaService';
 import type { SLAConfiguration, TicketPriority } from '../types/ticket';
 

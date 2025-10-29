@@ -1,6 +1,6 @@
 // src/components/SLAAlertMonitor.tsx
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertTriangle, Bell, X } from 'lucide-react';
+import { AlertTriangle, Bell } from 'lucide-react';
 import { useSLAMonitor } from '../hooks/useSLAMonitor';
 
 interface SLAAlertMonitorProps {
@@ -9,7 +9,7 @@ interface SLAAlertMonitorProps {
 }
 
 export default function SLAAlertMonitor({ enabled = true, intervalSeconds = 60 }: SLAAlertMonitorProps) {
-  const { alerts, loading } = useSLAMonitor(enabled, intervalSeconds);
+  const { alerts } = useSLAMonitor(enabled, intervalSeconds);
 
   if (!enabled || alerts.length === 0) {
     return null;

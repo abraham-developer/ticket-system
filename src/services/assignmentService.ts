@@ -44,7 +44,7 @@ function evaluateRule(ticket: Partial<CreateTicketDTO>, rule: AssignmentRule): b
  */
 export async function findBestAgent(
   role?: string,
-  category?: string
+  _category?: string
 ): Promise<string | null> {
   let query = supabase
     .from('users')

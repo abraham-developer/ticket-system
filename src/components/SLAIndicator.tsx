@@ -1,5 +1,5 @@
 // src/components/SLAIndicator.tsx
-import { Clock, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
+import {  AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
 import type { Ticket, SLAStatus } from '../types/ticket';
 
 interface SLAIndicatorProps {
