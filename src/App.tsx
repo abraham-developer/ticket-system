@@ -1,9 +1,11 @@
+// src/App.tsx - VERSIÓN ACTUALIZADA
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
+import SLAManagement from './pages/SLAManagement';
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
   const { user, loading } = useAuth();
 
   console.log('🔒 ProtectedRoute - user:', user, 'loading:', loading);
@@ -22,6 +24,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (!user) {
     console.log('❌ No user, redirecting to login');
     return <Navigate to="/login" replace />;
+  }
+
+  if (adminOnly && user.role !== 'admin') {
+    console.log('❌ User is not admin, redirecting to dashboard');
+    return <Navigate to="/dashboard" replace />;
   }
 
   console.log('✅ User authenticated, rendering children');
@@ -52,6 +59,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/sla-management"
+        element={
+          <ProtectedRoute adminOnly>
+            <SLAManagement />
           </ProtectedRoute>
         }
       />

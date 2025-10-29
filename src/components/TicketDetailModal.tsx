@@ -1,9 +1,14 @@
+// src/components/TicketDetailModal.tsx - VERSIÓN MEJORADA
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, MessageSquare, Lock, User, CheckCircle } from 'lucide-react';
+import { 
+  X, Send, MessageSquare, Lock, User, CheckCircle, 
+  Hash, MessageCircle, Mail, Phone, Clock, Tag, AlertCircle 
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getTicketComments, createComment } from '../services/commentService';
 import { closeTicket } from '../services/ticketService';
+import SLAIndicator from './SLAIndicator';
 import type { Ticket, TicketComment } from '../types/ticket';
 
 interface TicketDetailModalProps {
@@ -20,14 +25,6 @@ export default function TicketDetailModal({ ticket, onClose, onTicketUpdated }: 
   const [loading, setLoading] = useState(false);
   const [showCloseDialog, setShowCloseDialog] = useState(false);
   const [closingComment, setClosingComment] = useState('');
-
-  // NO bloquear scroll del body - permitir scroll en el backdrop
-  useEffect(() => {
-    // Ya no bloqueamos el scroll
-    return () => {
-      // Cleanup si es necesario
-    };
-  }, []);
 
   useEffect(() => {
     loadComments();
@@ -94,9 +91,47 @@ export default function TicketDetailModal({ ticket, onClose, onTicketUpdated }: 
     closed: 'Cerrado',
   };
 
+  const getContactIcon = () => {
+    switch (ticket.contact_medium) {
+      case 'whatsapp': return <MessageCircle className="w-5 h-5" />;
+      case 'email': return <Mail className="w-5 h-5" />;
+      case 'phone': return <Phone className="w-5 h-5" />;
+      default: return null;
+    }
+  };
+
+  const getContactLabel = () => {
+    switch (ticket.contact_medium) {
+      case 'whatsapp': return 'WhatsApp';
+      case 'email': return 'Correo Electrónico';
+      case 'phone': return 'Teléfono';
+      default: return 'Contacto';
+    }
+  };
+
+  const formatContactValue = () => {
+    if (!ticket.contact_value) return '';
+    
+    if (ticket.contact_medium === 'phone' || ticket.contact_medium === 'whatsapp') {
+      const cleaned = ticket.contact_value.replace(/\D/g, '');
+      
+      if (cleaned.startsWith('521') && cleaned.length === 13) {
+        return `+52 ${cleaned.slice(3, 5)} ${cleaned.slice(5, 9)} ${cleaned.slice(9, 13)}`;
+      }
+      
+      if (cleaned.length === 10) {
+        return `${cleaned.slice(0, 2)} ${cleaned.slice(2, 6)} ${cleaned.slice(6, 10)}`;
+      }
+      
+      return ticket.contact_value;
+    }
+    
+    return ticket.contact_value;
+  };
+
   return (
     <>
-      {/* Backdrop - FIXED con scroll permitido */}
+      {/* Backdrop */}
       <div 
         className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 overflow-auto p-4"
         onClick={onClose}
@@ -106,25 +141,46 @@ export default function TicketDetailModal({ ticket, onClose, onTicketUpdated }: 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           onClick={(e) => e.stopPropagation()}
-          className="bg-slate-800 rounded-2xl w-full max-w-4xl flex flex-col border border-purple-500/20 max-h-[90vh]"
+          className="bg-slate-800 rounded-2xl w-full max-w-5xl flex flex-col border border-purple-500/20 max-h-[90vh]"
         >
           {/* Header */}
           <div className="p-4 md:p-6 border-b border-slate-700 flex-shrink-0">
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start justify-between gap-4 mb-4">
               <div className="flex-1 min-w-0">
+                {/* Número de Ticket */}
+                {ticket.ticket_number && (
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-1 px-3 py-1 bg-purple-600/20 text-purple-400 rounded-lg text-sm font-mono font-semibold">
+                      <Hash className="w-4 h-4" />
+                      {ticket.ticket_number}
+                    </div>
+                    <span className={`px-3 py-1 rounded-lg text-sm font-medium border ${statusColors[ticket.status]}`}>
+                      {statusLabels[ticket.status]}
+                    </span>
+                  </div>
+                )}
+
                 <h2 className="text-xl md:text-2xl font-bold text-white mb-2">{ticket.title}</h2>
-                <div className="flex flex-wrap items-center gap-2 md:gap-3">
-                  <span className={`px-2 md:px-3 py-1 rounded-lg text-xs md:text-sm font-medium border ${statusColors[ticket.status]}`}>
-                    {statusLabels[ticket.status]}
-                  </span>
-                  <span className="text-slate-400 text-xs md:text-sm">
+                
+                <div className="flex flex-wrap items-center gap-2 text-xs md:text-sm text-slate-400">
+                  <div className="flex items-center gap-1">
+                    <Clock className="w-4 h-4" />
                     Creado {new Date(ticket.created_at).toLocaleDateString('es-MX', {
                       day: 'numeric',
                       month: 'long',
                       hour: '2-digit',
                       minute: '2-digit'
                     })}
-                  </span>
+                  </div>
+                  {ticket.category && (
+                    <>
+                      <span>•</span>
+                      <div className="flex items-center gap-1">
+                        <Tag className="w-4 h-4" />
+                        {ticket.category}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
               <button
@@ -136,11 +192,75 @@ export default function TicketDetailModal({ ticket, onClose, onTicketUpdated }: 
             </div>
 
             {ticket.description && (
-              <p className="mt-4 text-slate-300 text-sm md:text-base">{ticket.description}</p>
+              <p className="text-slate-300 text-sm md:text-base mb-4">{ticket.description}</p>
             )}
+
+            {/* Información de Contacto y Asignación - Grid de 2 columnas */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Información de Contacto */}
+              {ticket.contact_medium && ticket.contact_value && (
+                <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700">
+                  <div className="flex items-start gap-3">
+                    <div className="p-3 bg-purple-600/20 rounded-lg flex-shrink-0">
+                      {getContactIcon()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs text-slate-500 mb-1">
+                        Medio de contacto
+                      </div>
+                      <div className="text-sm text-slate-400 mb-1">
+                        {getContactLabel()}
+                      </div>
+                      <div className="text-base text-white font-medium break-all">
+                        {formatContactValue()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Información de Asignación */}
+              <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700">
+                {ticket.assignee ? (
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                      <User className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs text-slate-500 mb-1">
+                        Asignado a
+                      </div>
+                      <div className="text-base text-white font-medium mb-1">
+                        {ticket.assignee.full_name}
+                      </div>
+                      <div className="text-sm text-slate-400 break-all">
+                        {ticket.assignee.email}
+                      </div>
+                      {ticket.auto_assigned && (
+                        <div className="mt-2">
+                          <span className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded">
+                            Asignado automáticamente
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-slate-500">
+                    <AlertCircle className="w-5 h-5" />
+                    <span className="text-sm">Sin asignar</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Indicador de SLA */}
+            <div className="mt-4">
+              <SLAIndicator ticket={ticket} size="md" showDetails />
+            </div>
           </div>
 
-          {/* Comentarios - con scroll interno */}
+          {/* Comentarios */}
           <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
             {comments.length === 0 ? (
               <div className="text-center py-8 text-slate-500">

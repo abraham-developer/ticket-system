@@ -1,5 +1,7 @@
+// src/components/TicketCard.tsx - VERSIÓN MEJORADA
 import { motion } from 'framer-motion';
-import { MessageCircle, Mail, Phone, User, Clock } from 'lucide-react';
+import { MessageCircle, Mail, Phone, User, Clock, Hash } from 'lucide-react';
+import { SLABadge } from './SLAIndicator';
 import type { Ticket } from '../types/ticket';
 
 interface TicketCardProps {
@@ -28,6 +30,13 @@ const statusLabels = {
   closed: 'Cerrado',
 };
 
+const priorityLabels = {
+  low: 'Baja',
+  medium: 'Media',
+  high: 'Alta',
+  urgent: 'Urgente',
+};
+
 export default function TicketCard({ ticket, onClick }: TicketCardProps) {
   const getContactIcon = () => {
     switch (ticket.contact_medium) {
@@ -38,6 +47,38 @@ export default function TicketCard({ ticket, onClick }: TicketCardProps) {
     }
   };
 
+  const getContactLabel = () => {
+    switch (ticket.contact_medium) {
+      case 'whatsapp': return 'WhatsApp';
+      case 'email': return 'Email';
+      case 'phone': return 'Teléfono';
+      default: return '';
+    }
+  };
+
+  const formatContactValue = () => {
+    if (!ticket.contact_value) return '';
+    
+    // Si es teléfono o WhatsApp, formatear el número
+    if (ticket.contact_medium === 'phone' || ticket.contact_medium === 'whatsapp') {
+      const cleaned = ticket.contact_value.replace(/\D/g, '');
+      
+      // Si empieza con 521 (México con código de país)
+      if (cleaned.startsWith('521') && cleaned.length === 13) {
+        return `+52 ${cleaned.slice(3, 5)} ${cleaned.slice(5, 9)} ${cleaned.slice(9, 13)}`;
+      }
+      
+      // Si es un número de 10 dígitos (México sin código)
+      if (cleaned.length === 10) {
+        return `${cleaned.slice(0, 2)} ${cleaned.slice(2, 6)} ${cleaned.slice(6, 10)}`;
+      }
+      
+      return ticket.contact_value;
+    }
+    
+    return ticket.contact_value;
+  };
+
   return (
     <motion.div
       whileHover={{ scale: 1.01 }}
@@ -46,38 +87,72 @@ export default function TicketCard({ ticket, onClick }: TicketCardProps) {
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3 mb-2">
-            <h3 className="text-lg font-semibold text-white truncate">
+          {/* Header con número, título y badges */}
+          <div className="flex items-start gap-3 mb-2 flex-wrap">
+            {/* Número de Ticket */}
+            {ticket.ticket_number && (
+              <div className="flex items-center gap-1 px-2 py-1 bg-purple-600/20 text-purple-400 rounded-lg text-xs font-mono font-semibold">
+                <Hash className="w-3 h-3" />
+                {ticket.ticket_number}
+              </div>
+            )}
+            
+            {/* Título */}
+            <h3 className="text-lg font-semibold text-white truncate flex-1 min-w-0">
               {ticket.title}
             </h3>
+            
+            {/* Badge de SLA */}
+            <SLABadge ticket={ticket} />
+            
+            {/* Estado */}
             <span className={`px-2 py-1 rounded-lg text-xs font-medium border ${statusColors[ticket.status]}`}>
               {statusLabels[ticket.status]}
             </span>
           </div>
 
+          {/* Descripción */}
           {ticket.description && (
             <p className="text-slate-400 text-sm mb-3 line-clamp-2">
               {ticket.description}
             </p>
           )}
 
-          <div className="flex flex-wrap items-center gap-4 text-sm">
+          {/* Información de contacto */}
+          {ticket.contact_medium && ticket.contact_value && (
+            <div className="mb-3 p-3 bg-slate-900/50 rounded-lg border border-slate-700">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-purple-600/20 rounded-lg">
+                  {getContactIcon()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs text-slate-500 mb-0.5">
+                    {getContactLabel()}
+                  </div>
+                  <div className="text-sm text-white font-medium truncate">
+                    {formatContactValue()}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Información adicional */}
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            {/* Prioridad */}
             <div className={`flex items-center gap-1 ${priorityColors[ticket.priority]}`}>
               <div className="w-2 h-2 rounded-full bg-current"></div>
-              <span className="capitalize">{ticket.priority}</span>
+              <span>{priorityLabels[ticket.priority]}</span>
             </div>
 
+            {/* Categoría */}
             {ticket.category && (
-              <span className="text-slate-500">{ticket.category}</span>
+              <span className="text-slate-500 px-2 py-1 bg-slate-800 rounded">
+                {ticket.category}
+              </span>
             )}
 
-            {ticket.contact_medium && (
-              <div className="flex items-center gap-1 text-slate-500">
-                {getContactIcon()}
-                <span className="capitalize">{ticket.contact_medium}</span>
-              </div>
-            )}
-
+            {/* Fecha de creación */}
             <div className="flex items-center gap-1 text-slate-500">
               <Clock className="w-4 h-4" />
               {new Date(ticket.created_at).toLocaleDateString('es-MX', {
@@ -87,13 +162,44 @@ export default function TicketCard({ ticket, onClick }: TicketCardProps) {
                 minute: '2-digit'
               })}
             </div>
+
+            {/* Tiempo SLA restante */}
+            {ticket.hours_until_resolution_breach !== undefined && 
+             ticket.status !== 'closed' && 
+             ticket.status !== 'resolved' && (
+              <div className={`flex items-center gap-1 text-xs px-2 py-1 rounded ${
+                ticket.hours_until_resolution_breach < 0 
+                  ? 'bg-red-500/20 text-red-400'
+                  : ticket.hours_until_resolution_breach < 2
+                  ? 'bg-yellow-500/20 text-yellow-400'
+                  : 'bg-green-500/20 text-green-400'
+              }`}>
+                <Clock className="w-3 h-3" />
+                {ticket.hours_until_resolution_breach > 0 
+                  ? `${Math.round(ticket.hours_until_resolution_breach)}h restantes`
+                  : `Vencido hace ${Math.abs(Math.round(ticket.hours_until_resolution_breach))}h`
+                }
+              </div>
+            )}
           </div>
 
+          {/* Asignación */}
           {ticket.assignee && (
-            <div className="mt-3 flex items-center gap-2 text-sm">
-              <User className="w-4 h-4 text-purple-400" />
-              <span className="text-slate-400">Asignado a:</span>
-              <span className="text-white font-medium">{ticket.assignee.full_name}</span>
+            <div className="mt-3 flex items-center gap-2 text-sm p-2 bg-slate-900/50 rounded-lg border border-slate-700">
+              <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                <User className="w-4 h-4 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="text-slate-400 text-xs">Asignado a:</span>
+                <span className="text-white font-medium ml-2 truncate">
+                  {ticket.assignee.full_name}
+                </span>
+              </div>
+              {ticket.auto_assigned && (
+                <span className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded">
+                  Auto
+                </span>
+              )}
             </div>
           )}
         </div>
